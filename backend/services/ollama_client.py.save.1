@@ -1,0 +1,78 @@
+import json
+import re
+from typing import List, Dict, Any, Optional
+import requests
+from django.conf import settings
+
+class OllamaClient:
+    def __init__(self):
+        self.base_url = getattr(settings, 'OLLAMA_BASE_URL', 'http://localhost:11434')
+        self.model = getattr(settings, 'OLLAMA_MODEL', 'qcm-generator')
+        self.timeout = getattr(settings, 'OLLAMA_TIMEOUT', 300)
+    
+    def generate_questions(self, text: str, nb_questions: int = 10, difficulty: str = 'intermediaire', question_types: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        if not question_types:
+            question_types = ['qcm', 'vf']
+        max_chars = 2000
+        if len(text) > max_chars:
+            text = text[:max_chars]
+            print(f"[WARNING] Texte tronque a {max_chars} caracteres")
+        print("\n" + "="*60)
+        print("DEBUT GENERATION QCM")
+        print("="*60)
+        print(f"Modele: {self.model}")
+        print(f"Texte: {len(text)} caracteres")
+        print(f"Questions: {nb_questions}")
+        print(f"Difficulte: {difficulty}")
+        print(f"Timeout: {self.timeout}s")
+        print("="*60)
+        prompt = f"Genre {nb_questions} questions QCM de niveau {difficulty}. TEXTE: {text}. Reponds en JSON: {{\"questions\": [{{\"type\": \"qcm\", \"question\": \"...\", \"choices\": [\"A\", \"B\", \"C\", \"D\"], \"answer\": \"A\", \"explanation\": \"...\"}}]}}"
+        payload = {"model": self.model, "messages": [{"role": "user", "content": prompt}], "stream": True}
+        print("\nEnvoi a Ollama...")
+        full_response = ""
+        try:
+            with requests.post(f"{self.base_url}/api/chat", json=payload, timeout=self.timeout, stream=True) as response:
+                response.raise_for_status()
+                print("Reponse Ollama:\n")
+                for line in response.iter_lines(decode_unicode=True):
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                        content = chunk.get("message", {}).get("content", "")
+                        if content:
+                            print(content, end="", flush=True)
+                            full_response += content
+                        if chunk.get("done"):
+                            break
+                    except json.JSONDecodeError:
+                        continue
+                print("\n" + "="*60)
+                print("Generation terminee!")
+        except requests.exceptions.Timeout:
+            print("\nTIMEOUT - Ollama trop lent")
+            raise TimeoutError("La generation a pris trop de temps.")
+        except Exception as e:
+            print(f"\nERREUR: {e}")
+            raise
+        questions = self._parse_response(full_response)
+        print(f"{len(questions)} questions extraites!\n")
+        return questions
+    
+    def _parse_response(self, response_text: str) -> List[Dict[str, Any]]:
+        response_text = response_text.strip()
+        if response_text.startswith('```'):
+            response_text = re.sub(r'^```(?:json)?\n?', '', response_text)
+            response_text = re.sub(r'\n?```$', '', response_text)
+        json_match = re.search(r'\{[\s\S]*"questions"[\s\S]*\}', response_text)
+        if json_match:
+            response_text = json_match.group(0)
+        try:
+            data = json.loads(response_text)
+            return data.get('questions', [])
+        except json.JSONDecodeError:
+            return []
+    
+    def check_connection(self) -> bool:
+        try:
+            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
