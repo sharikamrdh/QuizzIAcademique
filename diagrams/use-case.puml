@@ -1,0 +1,83 @@
+@startuml UseCase
+!theme plain
+
+left to right direction
+skinparam actorStyle awesome
+
+title Diagramme de Cas d'Utilisation - Quiz Generator
+
+actor "Étudiant" as student
+actor "Enseignant" as teacher
+actor "Système IA\n(Ollama)" as ai
+
+rectangle "Application Quiz Generator" {
+    ' Authentification
+    usecase "S'inscrire" as UC1
+    usecase "Se connecter" as UC2
+    usecase "Gérer son profil" as UC3
+    
+    ' Gestion des cours
+    usecase "Créer un cours" as UC4
+    usecase "Uploader des documents" as UC5
+    usecase "Consulter ses cours" as UC6
+    
+    ' Génération de quiz
+    usecase "Générer un quiz IA" as UC7
+    usecase "Extraire le texte" as UC8
+    usecase "Créer les questions" as UC9
+    
+    ' Passage des quiz
+    usecase "Passer un quiz" as UC10
+    usecase "Voir la correction" as UC11
+    usecase "Mode révision (Flashcards)" as UC12
+    
+    ' Progression
+    usecase "Consulter le dashboard" as UC13
+    usecase "Voir son historique" as UC14
+    usecase "Gagner des badges" as UC15
+}
+
+' Relations Étudiant
+student --> UC1
+student --> UC2
+student --> UC3
+student --> UC6
+student --> UC10
+student --> UC11
+student --> UC12
+student --> UC13
+student --> UC14
+student --> UC15
+
+' Relations Enseignant
+teacher --> UC1
+teacher --> UC2
+teacher --> UC3
+teacher --> UC4
+teacher --> UC5
+teacher --> UC6
+teacher --> UC7
+
+' Relations système IA
+UC7 ..> UC8 : <<include>>
+UC7 ..> UC9 : <<include>>
+UC8 --> ai : utilise
+UC9 --> ai : utilise
+
+' Extensions
+UC5 ..> UC8 : <<extend>>
+
+note right of UC7
+  L'enseignant configure :
+  - Nombre de questions
+  - Difficulté
+  - Types de questions
+end note
+
+note right of UC10
+  Timer optionnel
+  Correction automatique
+  Points attribués
+end note
+
+@enduml

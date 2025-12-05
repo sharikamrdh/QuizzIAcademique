@@ -1,0 +1,163 @@
+@startuml ClassDiagram
+!theme plain
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+
+title Diagramme de Classes - Quiz Generator
+
+' ========== USERS ==========
+class User {
+    +id: int
+    +username: string
+    +email: string
+    +password: string
+    +first_name: string
+    +last_name: string
+    +role: enum[student, teacher, admin]
+    +avatar: string
+    +bio: text
+    +institution: string
+    +total_points: int
+    +level: int
+    +created_at: datetime
+    --
+    +add_points(points: int): void
+    +is_student(): bool
+    +is_teacher(): bool
+}
+
+class Badge {
+    +id: int
+    +name: string
+    +description: text
+    +icon: string
+    +badge_type: enum[bronze, silver, gold, platinum]
+    +points_required: int
+    +quizzes_required: int
+}
+
+class UserBadge {
+    +id: int
+    +earned_at: datetime
+}
+
+' ========== COURSES ==========
+class Course {
+    +id: int
+    +title: string
+    +description: text
+    +category: enum[science, math, history, language, it, other]
+    +is_public: bool
+    +thumbnail: string
+    +created_at: datetime
+    +updated_at: datetime
+    --
+    +documents_count(): int
+    +total_text_length(): int
+}
+
+class Document {
+    +id: int
+    +title: string
+    +file: string
+    +file_type: enum[pdf, docx, txt, image]
+    +file_size: int
+    +extracted_text: text
+    +processing_status: enum[pending, processing, completed, failed]
+    +processing_error: text
+    +created_at: datetime
+    --
+    +extracted_text_length(): int
+}
+
+class CourseEnrollment {
+    +id: int
+    +enrolled_at: datetime
+    +progress: float
+}
+
+' ========== QUIZZES ==========
+class Quiz {
+    +id: int
+    +title: string
+    +description: text
+    +difficulty: enum[debutant, intermediaire, avance]
+    +status: enum[draft, published, archived]
+    +time_limit: int
+    +passing_score: int
+    +shuffle_questions: bool
+    +show_correct_answers: bool
+    +created_at: datetime
+    --
+    +questions_count(): int
+    +total_points(): int
+}
+
+class Question {
+    +id: int
+    +question_type: enum[qcm, vf, ouvert, completion]
+    +text: text
+    +choices: json
+    +correct_answer: text
+    +explanation: text
+    +points: int
+    +order: int
+    --
+    +check_answer(answer: string): bool
+}
+
+class QuizAttempt {
+    +id: int
+    +status: enum[in_progress, completed, abandoned]
+    +score: float
+    +points_earned: int
+    +total_points: int
+    +correct_answers: int
+    +total_questions: int
+    +time_spent: int
+    +started_at: datetime
+    +completed_at: datetime
+    --
+    +is_passed(): bool
+}
+
+class UserAnswer {
+    +id: int
+    +answer: text
+    +is_correct: bool
+    +points_earned: int
+    +answered_at: datetime
+}
+
+class Flashcard {
+    +id: int
+    +front: text
+    +back: text
+    +hint: text
+    +order: int
+}
+
+' ========== RELATIONS ==========
+User "1" -- "*" Course : owns >
+User "1" -- "*" UserBadge : earns >
+Badge "1" -- "*" UserBadge : awarded in <
+User "1" -- "*" CourseEnrollment : enrolls >
+Course "1" -- "*" CourseEnrollment : has <
+
+Course "1" -- "*" Document : contains >
+User "1" -- "*" Document : uploads >
+
+Course "1" -- "*" Quiz : has >
+Quiz "*" -- "*" Document : uses >
+User "1" -- "*" Quiz : creates >
+
+Quiz "1" -- "*" Question : contains >
+Quiz "1" -- "*" Flashcard : has >
+Quiz "1" -- "*" QuizAttempt : has >
+
+User "1" -- "*" QuizAttempt : takes >
+QuizAttempt "1" -- "*" UserAnswer : contains >
+Question "1" -- "*" UserAnswer : answered by <
+
+@enduml
