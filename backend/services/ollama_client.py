@@ -1,304 +1,201 @@
-"""
-Ollama Client Service for AI-powered quiz generation.
-
-This service communicates with a local Ollama instance running the
-qcm-generator model to generate quiz questions from text content.
-"""
-
 import json
-import logging
 import re
-from typing import List, Dict, Any, Optional
-
 import requests
 from django.conf import settings
 
-logger = logging.getLogger(__name__)
-
-
 class OllamaClient:
-    """
-    Client for interacting with Ollama API to generate quiz questions.
-    """
-    
-    def __init__(
-        self,
-        base_url: Optional[str] = None,
-        model: Optional[str] = None,
-        timeout: Optional[int] = None
-    ):
-        self.base_url = base_url or getattr(settings, 'OLLAMA_BASE_URL', 'http://localhost:11434')
-        self.model = model or getattr(settings, 'OLLAMA_MODEL', 'qcm-generator')
-        self.timeout = timeout or getattr(settings, 'OLLAMA_TIMEOUT', 120)
-    
-    def _build_prompt(
-        self,
-        text: str,
-        nb_questions: int,
-        difficulty: str,
-        question_types: List[str]
-    ) -> str:
-        """Build the prompt for the AI model."""
-        
-        # Map difficulty to French
-        difficulty_map = {
-            'debutant': 'débutant (facile)',
-            'intermediaire': 'intermédiaire (moyen)',
-            'avance': 'avancé (difficile)'
-        }
-        difficulty_label = difficulty_map.get(difficulty, difficulty)
-        
-        # Map question types
-        type_descriptions = {
-            'qcm': 'QCM (question à choix multiples avec 4 options)',
-            'vf': 'Vrai/Faux',
-            'ouvert': 'Question ouverte (réponse courte attendue)',
-            'completion': 'Complétion (phrase à trou)'
-        }
-        types_text = ', '.join([type_descriptions.get(t, t) for t in question_types])
-        
-        prompt = f"""Tu es un générateur de quiz éducatif. À partir du texte suivant, génère exactement {nb_questions} questions de niveau {difficulty_label}.
+    def __init__(self):
+        self.base_url = getattr(settings, 'OLLAMA_BASE_URL', 'http://localhost:11434')
+        self.model = getattr(settings, 'OLLAMA_MODEL', 'qcm-generator')
+        self.timeout = getattr(settings, 'OLLAMA_TIMEOUT', 300)
 
-Types de questions à utiliser: {types_text}
+    # ============================================================
+    # 🔥 PROMPT + GENERATION
+    # ============================================================
+    def generate_questions(self, text, nb_questions=10, difficulty='intermediaire', question_types=None):
+        max_chars = 2000
+        if len(text) > max_chars:
+            text = text[:max_chars]
 
-TEXTE SOURCE:
-{text[:8000]}
+        print("\n" + "="*50)
+        print("GENERATION QCM")
+        print(f"Modele: {self.model}")
+        print(f"Taille texte: {len(text)} caracteres")
+        print(f"Questions: {nb_questions}")
+        print("="*50)
 
-INSTRUCTIONS IMPORTANTES:
-1. Les questions doivent être directement liées au contenu du texte
-2. Varier les types de questions demandés
-3. Pour les QCM, une seule réponse doit être correcte
-4. Les explications doivent être pédagogiques et claires
-5. Adapter la difficulté au niveau demandé
+        # ------------------------------------------------------------
+        # 🎯 PROMPT OFFICIEL — Format QCM-TEXT (pas de JSON)
+        # ------------------------------------------------------------
+        prompt = f"""
+Tu es une IA experte en génération de QCM universitaires.
 
-RÉPONDS UNIQUEMENT AVEC UN JSON VALIDE au format suivant (sans texte avant ou après):
-{{
-  "questions": [
-    {{
-      "type": "qcm",
-      "question": "Question ici?",
-      "choices": ["Option A", "Option B", "Option C", "Option D"],
-      "answer": "Option A",
-      "explanation": "Explication de la bonne réponse",
-      "difficulty": "{difficulty}"
-    }},
-    {{
-      "type": "vf",
-      "question": "Affirmation à évaluer",
-      "choices": ["Vrai", "Faux"],
-      "answer": "Vrai",
-      "explanation": "Explication",
-      "difficulty": "{difficulty}"
-    }},
-    {{
-      "type": "ouvert",
-      "question": "Question ouverte?",
-      "choices": [],
-      "answer": "Réponse attendue",
-      "explanation": "Explication",
-      "difficulty": "{difficulty}"
-    }},
-    {{
-      "type": "completion",
-      "question": "Le ___ est important pour...",
-      "choices": [],
-      "answer": "mot manquant",
-      "explanation": "Explication",
-      "difficulty": "{difficulty}"
-    }}
-  ]
-}}
+🎯 OBJECTIF :
+À partir du texte fourni, générer EXACTEMENT {nb_questions} questions QCM pertinentes, claires et bien formulées.
 
-Génère maintenant les {nb_questions} questions:"""
-        
-        return prompt
-    
-    def _parse_response(self, response_text: str) -> List[Dict[str, Any]]:
-        """Parse the AI response and extract questions."""
-        
-        # Try to find JSON in the response
-        response_text = response_text.strip()
-        
-        # Remove markdown code blocks if present
-        if response_text.startswith('```'):
-            response_text = re.sub(r'^```(?:json)?\n?', '', response_text)
-            response_text = re.sub(r'\n?```$', '', response_text)
-        
-        # Try to find JSON object
-        json_match = re.search(r'\{[\s\S]*"questions"[\s\S]*\}', response_text)
-        if json_match:
-            response_text = json_match.group(0)
-        
-        try:
-            data = json.loads(response_text)
-            questions = data.get('questions', [])
-            
-            # Validate and clean questions
-            valid_questions = []
-            for q in questions:
-                if self._validate_question(q):
-                    valid_questions.append(q)
-            
-            return valid_questions
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON response: {e}")
-            logger.debug(f"Response text: {response_text[:500]}")
-            return []
-    
-    def _validate_question(self, question: Dict[str, Any]) -> bool:
-        """Validate a question structure."""
-        
-        required_fields = ['type', 'question', 'answer']
-        for field in required_fields:
-            if field not in question:
-                logger.warning(f"Missing field '{field}' in question")
-                return False
-        
-        valid_types = ['qcm', 'vf', 'ouvert', 'completion']
-        if question['type'] not in valid_types:
-            logger.warning(f"Invalid question type: {question['type']}")
-            return False
-        
-        # QCM and VF must have choices
-        if question['type'] in ['qcm', 'vf']:
-            if not question.get('choices') or len(question['choices']) < 2:
-                logger.warning(f"QCM/VF question missing valid choices")
-                return False
-        
-        return True
-    
-    def generate_questions(
-        self,
-        text: str,
-        nb_questions: int = 10,
-        difficulty: str = 'intermediaire',
-        question_types: Optional[List[str]] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Generate quiz questions from text using Ollama.
-        
-        Args:
-            text: Source text to generate questions from
-            nb_questions: Number of questions to generate
-            difficulty: Difficulty level (debutant, intermediaire, avance)
-            question_types: List of question types to include
-        
-        Returns:
-            List of question dictionaries
-        """
-        
-        if not question_types:
-            question_types = ['qcm', 'vf']
-        
-        prompt = self._build_prompt(text, nb_questions, difficulty, question_types)
-        
+📌 MISSION :
+1. Lire attentivement tout le texte.
+2. Mémoriser les concepts clés, notions importantes, définitions, exemples et explications.
+3. Générer EXACTEMENT {nb_questions} QCM pertinents basés uniquement sur ces informations.
+
+📌 FORMULATION DES QUESTIONS :
+- Chaque question doit être une vraie question avec “?”.
+- Jamais de titres, jamais de phrases nominales.
+- Chaque QCM doit tester un concept réel du texte.
+
+📌 FORMAT STRICT (PAS DE JSON, PAS DE MARKDOWN) :
+
+Q1: [question ?]
+A) [choix A]
+B) [choix B]
+C) [choix C]
+D) [choix D]
+ANSWER: [A/B/C/D]
+EXPLANATION: [explication]
+
+Q2: ...
+(etc.)
+
+📄 TEXTE :
+{text}
+"""
+
         payload = {
             "model": self.model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "stream": False,
-            "options": {
-                "temperature": 0.7,
-                "num_predict": 4000
-            }
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True
         }
-        
+
+        print("\nEnvoi Ollama...\n")
+        full_response = ""
+
         try:
-            logger.info(f"Sending request to Ollama: {self.base_url}/api/chat")
-            
-            response = requests.post(
+            with requests.post(
                 f"{self.base_url}/api/chat",
                 json=payload,
-                timeout=self.timeout
-            )
-            response.raise_for_status()
-            
-            result = response.json()
-            
-            # Extract message content
-            message_content = result.get('message', {}).get('content', '')
-            
-            if not message_content:
-                logger.error("Empty response from Ollama")
-                return []
-            
-            logger.debug(f"Ollama response: {message_content[:500]}...")
-            
-            questions = self._parse_response(message_content)
-            
-            logger.info(f"Successfully generated {len(questions)} questions")
-            return questions
-            
-        except requests.exceptions.ConnectionError:
-            logger.error(f"Cannot connect to Ollama at {self.base_url}")
-            raise ConnectionError(
-                f"Impossible de se connecter à Ollama. "
-                f"Vérifiez que Ollama est démarré sur {self.base_url}"
-            )
-        except requests.exceptions.Timeout:
-            logger.error(f"Ollama request timed out after {self.timeout}s")
-            raise TimeoutError(
-                f"La génération a pris trop de temps. "
-                f"Essayez avec moins de questions."
-            )
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"Ollama HTTP error: {e}")
-            raise RuntimeError(f"Erreur Ollama: {str(e)}")
-        except Exception as e:
-            logger.exception(f"Unexpected error during question generation: {e}")
-            raise RuntimeError(f"Erreur inattendue: {str(e)}")
-    
-    def check_connection(self) -> bool:
-        """Check if Ollama is reachable and the model is available."""
-        
-        try:
-            # Check Ollama is running
-            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
-            response.raise_for_status()
-            
-            # Check model is available
-            models = response.json().get('models', [])
-            model_names = [m.get('name', '').split(':')[0] for m in models]
-            
-            if self.model not in model_names:
-                logger.warning(f"Model '{self.model}' not found. Available: {model_names}")
-                return False
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Ollama connection check failed: {e}")
-            return False
+                timeout=self.timeout,
+                stream=True
+            ) as r:
+                r.raise_for_status()
 
+                for line in r.iter_lines(decode_unicode=True):
+                    if not line:
+                        continue
 
-# Example usage and testing
-if __name__ == '__main__':
-    client = OllamaClient()
-    
-    if client.check_connection():
-        print("✓ Ollama is connected and model is available")
-        
-        test_text = """
-        Le machine learning est une branche de l'intelligence artificielle qui permet 
-        aux ordinateurs d'apprendre à partir de données sans être explicitement programmés.
-        Il existe trois types principaux: l'apprentissage supervisé, non supervisé et 
-        par renforcement. L'apprentissage supervisé utilise des données étiquetées.
+                    try:
+                        chunk = json.loads(line)
+                        content = chunk.get("message", {}).get("content", "")
+
+                        if content:
+                            print(content, end="", flush=True)
+                            full_response += content
+
+                        if chunk.get("done"):
+                            break
+
+                    except:
+                        pass
+
+            print("\n" + "="*50)
+            print(f"Reponse complete: {len(full_response)} car\n")
+
+        except Exception as e:
+            print(f"❌ ERREUR réseau Ollama: {e}")
+            raise
+
+        # ------------------------------------------------------------
+        # 🔥 PARSE DU FORMAT QCM-TEXT (plus de JSON)
+        # ------------------------------------------------------------
+        questions = self._parse_qcm_text(full_response)
+
+        if not questions:
+            print("⚠️ WARN: Aucune question extraite — Fallback utilisé.")
+            questions = self._create_manual_questions(nb_questions)
+
+        return questions
+
+    # ============================================================
+    # 🔥 NOUVEAU PARSEUR — FORMAT QCM-TEXT
+    # ============================================================
+    def _parse_qcm_text(self, raw):
         """
-        
-        questions = client.generate_questions(
-            text=test_text,
-            nb_questions=3,
-            difficulty='intermediaire',
-            question_types=['qcm', 'vf']
-        )
-        
-        print(f"\nGenerated {len(questions)} questions:")
-        for i, q in enumerate(questions, 1):
-            print(f"\n{i}. [{q['type']}] {q['question']}")
-    else:
-        print("✗ Cannot connect to Ollama")
+        Parse un format :
+
+        Q1: Question ?
+        A) ...
+        B) ...
+        C) ...
+        D) ...
+        ANSWER: A
+        EXPLANATION: texte
+        """
+
+        if not raw:
+            return None
+
+        # découper par Q1:, Q2:, Q3:, etc.
+        blocks = re.split(r'\bQ[0-9]+[:：]', raw)[1:]
+        questions = []
+
+        for block in blocks:
+            lines = [l.strip() for l in block.split("\n") if l.strip()]
+
+            # il faut au minimum 7 lignes dans un QCM complet
+            if len(lines) < 7:
+                continue
+
+            try:
+                # Question = ligne 1
+                question = lines[0]
+
+                # Choix
+                choiceA = lines[1][3:].strip()
+                choiceB = lines[2][3:].strip()
+                choiceC = lines[3][3:].strip()
+                choiceD = lines[4][3:].strip()
+
+                # Answer
+                match_answer = re.search(r'ANSWER\s*[:：]\s*([ABCD])', block)
+                if not match_answer:
+                    continue
+                answer = match_answer.group(1)
+
+                # Explanation
+                match_exp = re.search(r'EXPLANATION\s*[:：]\s*(.*)', block)
+                explanation = match_exp.group(1) if match_exp else ""
+
+                # Construire l'objet
+                questions.append({
+                    "type": "qcm",
+                    "question": question,
+                    "choices": [
+                        f"A) {choiceA}",
+                        f"B) {choiceB}",
+                        f"C) {choiceC}",
+                        f"D) {choiceD}"
+                    ],
+                    "answer": answer,
+                    "explanation": explanation
+                })
+
+            except Exception as e:
+                print(f"Erreur parsing bloc QCM: {e}")
+                continue
+
+        return questions if questions else None
+
+    # ============================================================
+    # 🔥 FALLBACK — si jamais l’IA renvoie rien
+    # ============================================================
+    def _create_manual_questions(self, nb=3):
+        return [
+            {
+                "type": "qcm",
+                "question": f"Question par défaut {i+1} ?",
+                "choices": ["A) ...", "B) ...", "C) ...", "D) ..."],
+                "answer": "A",
+                "explanation": "Fallback utilisé car la génération IA était invalide."
+            }
+            for i in range(nb)
+        ]
+
