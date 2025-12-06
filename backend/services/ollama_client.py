@@ -9,57 +9,6 @@ class OllamaClient:
         self.model = getattr(settings, 'OLLAMA_MODEL', 'qcm-generator')
         self.timeout = getattr(settings, 'OLLAMA_TIMEOUT', 300)
 
-        # ============================================================
-    # 🔥 VÉRITABLE JSON HEALER (VERSION INDUSTRIELLE)
-    # ============================================================
-    def _fix_broken_json(self, text):
-        """
-        Répare un JSON généré par un modèle LLM même lorsqu'il est STRUCTURELLEMENT cassé.
-
-        - ferme automatiquement les guillemets
-        - ferme automatiquement les crochets
-        - ferme automatiquement les objets
-        - supprime les retours à la ligne illégaux
-        - supprime les caractères non imprimables
-        - répare les virgules manquantes
-        - répare les chaines de choix coupées
-        """
-
-        # 1) Nettoyage général
-        text = text.replace("\r", "")
-        text = re.sub(r'[\x00-\x1F]', ' ', text)
-
-        # 2) Fusionner les lignes cassées dans les strings
-        text = re.sub(r'"\s*\n\s*"', '" "', text)
-
-        # 3) Enlever retours à la ligne dans les tableaux
-        text = re.sub(r'\[\s*\n', '[', text)
-        text = re.sub(r'\n\s*\]', ']', text)
-
-        # 4) Ajouter un guillemet manquant pour un choix cassé
-        text = re.sub(r'("D\)[^"]*)(\n|$)', r'\1"', text)
-
-        # 5) Fermer les crochets non fermés
-        if text.count("[") > text.count("]"):
-            text += "]" * (text.count("[") - text.count("]"))
-
-        # 6) Fermer les accolades non fermées
-        if text.count("{") > text.count("}"):
-            text += "}" * (text.count("{") - text.count("}"))
-
-        # 7) Ajouter un guillemet fermant si un champ string est ouvert
-        to_fix = re.findall(r'"[^"]*$', text)
-        if to_fix:
-            text += '"'
-
-        # 8) Supprimer virgules finales illégales
-        text = re.sub(r',(\s*[}\]])', r'\1', text)
-
-        # 9) Supprimer doubles virgules
-        text = text.replace(",,", ",")
-
-        return text
-
     # ============================================================
     # 🔥 PROMPT + GENERATION
     # ============================================================
@@ -75,49 +24,40 @@ class OllamaClient:
         print(f"Questions: {nb_questions}")
         print("="*50)
 
-        # 🔥 PROMPT ULTRA STRICT (accolades doublées pour f-string)
+        # ------------------------------------------------------------
+        # 🎯 PROMPT OFFICIEL — Format QCM-TEXT (pas de JSON)
+        # ------------------------------------------------------------
         prompt = f"""
 Tu es une IA experte en génération de QCM universitaires.
 
 🎯 OBJECTIF :
-À partir du texte fourni, génère EXACTEMENT {nb_questions} questions QCM pertinentes, claires et bien formulées.
+À partir du texte fourni, générer EXACTEMENT {nb_questions} questions QCM pertinentes, claires et bien formulées.
 
-MISSION :
-1. Lire tout le texte
-2. Mémoriser les concepts clés
-3. Générer EXACTEMENT {nb_questions} QCM pertinents
+📌 MISSION :
+1. Lire attentivement tout le texte.
+2. Mémoriser les concepts clés, notions importantes, définitions, exemples et explications.
+3. Générer EXACTEMENT {nb_questions} QCM pertinents basés uniquement sur ces informations.
 
-📌 RÈGLES GÉNÉRALES (valables pour TOUS LES DOMAINES) :
-- Lire attentivement tout le texte.
-- Identifier les idées importantes, définitions, concepts, méthodes, dates, enjeux.
-- Formuler de VRAIES QUESTIONS (avec “?”) : jamais de titres, jamais de phrases nominales.
-- Tester la compréhension du contenu (pas de questions superficielles).
-- AUCUNE invention hors du texte.
+📌 FORMULATION DES QUESTIONS :
+- Chaque question doit être une vraie question avec “?”.
+- Jamais de titres, jamais de phrases nominales.
+- Chaque QCM doit tester un concept réel du texte.
 
-CONTRAINTES :
-- EXACTEMENT 4 choix : A, B, C, D
-- answer = "A" | "B" | "C" | "D"
-- Distracteurs plausibles
-- Aucune invention hors du texte
-- JSON strict
+📌 FORMAT STRICT (PAS DE JSON, PAS DE MARKDOWN) :
 
-FORMAT EXACT ATTENDU :
-{{
-  "questions": [
-    {{
-      "type": "qcm",
-      "question": "Texte de la question ?",
-      "choices": ["A) ...", "B) ...", "C) ...", "D) ..."],
-      "answer": "A",
-      "explanation": "Explication ici."
-    }}
-  ]
-}}
+Q1: [question ?]
+A) [choix A]
+B) [choix B]
+C) [choix C]
+D) [choix D]
+ANSWER: [A/B/C/D]
+EXPLANATION: [explication]
 
-TEXTE :
+Q2: ...
+(etc.)
+
+📄 TEXTE :
 {text}
-
-⚠️ RÉPONDS UNIQUEMENT AVEC LE JSON CI-DESSUS.
 """
 
         payload = {
@@ -145,13 +85,14 @@ TEXTE :
                     try:
                         chunk = json.loads(line)
                         content = chunk.get("message", {}).get("content", "")
-                        
+
                         if content:
                             print(content, end="", flush=True)
                             full_response += content
-                        
+
                         if chunk.get("done"):
                             break
+
                     except:
                         pass
 
@@ -159,11 +100,13 @@ TEXTE :
             print(f"Reponse complete: {len(full_response)} car\n")
 
         except Exception as e:
-            print(f"ERREUR réseau Ollama: {e}")
+            print(f"❌ ERREUR réseau Ollama: {e}")
             raise
 
-        # 🔥 PARSE JSON ULTRA ROBUSTE
-        questions = self._parse_response(full_response)
+        # ------------------------------------------------------------
+        # 🔥 PARSE DU FORMAT QCM-TEXT (plus de JSON)
+        # ------------------------------------------------------------
+        questions = self._parse_qcm_text(full_response)
 
         if not questions:
             print("⚠️ WARN: Aucune question extraite — Fallback utilisé.")
@@ -172,45 +115,77 @@ TEXTE :
         return questions
 
     # ============================================================
-    # 🔥 PARSEUR JSON FINAL, AVEC RÉPARATION AVANCÉE
+    # 🔥 NOUVEAU PARSEUR — FORMAT QCM-TEXT
     # ============================================================
-    def _parse_response(self, text):
-        if not text:
+    def _parse_qcm_text(self, raw):
+        """
+        Parse un format :
+
+        Q1: Question ?
+        A) ...
+        B) ...
+        C) ...
+        D) ...
+        ANSWER: A
+        EXPLANATION: texte
+        """
+
+        if not raw:
             return None
 
-        clean = text.strip()
+        # découper par Q1:, Q2:, Q3:, etc.
+        blocks = re.split(r'\bQ[0-9]+[:：]', raw)[1:]
+        questions = []
 
-        # 1) retirer tout avant {
-        clean = re.sub(r'^[^{]*', '', clean)
+        for block in blocks:
+            lines = [l.strip() for l in block.split("\n") if l.strip()]
 
-        # 2) retirer tout après le dernier }
-        clean = re.sub(r'[^}]*$', '', clean)
+            # il faut au minimum 7 lignes dans un QCM complet
+            if len(lines) < 7:
+                continue
 
-        # 3) PASSER PAR LE JSON HEALER
-        clean = self._fix_broken_json(clean)
+            try:
+                # Question = ligne 1
+                question = lines[0]
 
-        # TENTATIVE 1 : parse direct
-        try:
-            data = json.loads(clean)
-            return data.get("questions", None)
-        except:
-            pass
+                # Choix
+                choiceA = lines[1][3:].strip()
+                choiceB = lines[2][3:].strip()
+                choiceC = lines[3][3:].strip()
+                choiceD = lines[4][3:].strip()
 
-        # TENTATIVE 2 : extraction du plus grand bloc JSON possible
-        try:
-            json_block = re.search(r'\{.*\}', clean, re.DOTALL).group(0)
-            json_block = self._fix_broken_json(json_block)
-            data = json.loads(json_block)
-            return data.get("questions", None)
-        except:
-            pass
+                # Answer
+                match_answer = re.search(r'ANSWER\s*[:：]\s*([ABCD])', block)
+                if not match_answer:
+                    continue
+                answer = match_answer.group(1)
 
-        print("⚠️ IMPOSSIBLE DE PARSER (après guérison) :")
-        print(clean)
-        return None
+                # Explanation
+                match_exp = re.search(r'EXPLANATION\s*[:：]\s*(.*)', block)
+                explanation = match_exp.group(1) if match_exp else ""
+
+                # Construire l'objet
+                questions.append({
+                    "type": "qcm",
+                    "question": question,
+                    "choices": [
+                        f"A) {choiceA}",
+                        f"B) {choiceB}",
+                        f"C) {choiceC}",
+                        f"D) {choiceD}"
+                    ],
+                    "answer": answer,
+                    "explanation": explanation
+                })
+
+            except Exception as e:
+                print(f"Erreur parsing bloc QCM: {e}")
+                continue
+
+        return questions if questions else None
 
     # ============================================================
-    # 🔥 FALLBACK AUTOMATIQUE
+    # 🔥 FALLBACK — si jamais l’IA renvoie rien
     # ============================================================
     def _create_manual_questions(self, nb=3):
         return [
