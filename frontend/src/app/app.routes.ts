@@ -64,11 +64,6 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
-    path: 'flashcards/:quizId',
-    loadComponent: () => import('./features/flashcards/flashcards.component').then(m => m.FlashcardsComponent),
-    canActivate: [authGuard],
-  },
-  {
     path: 'history',
     loadComponent: () => import('./features/dashboard/history/history.component').then(m => m.HistoryComponent),
     canActivate: [authGuard],
@@ -76,6 +71,21 @@ export const routes: Routes = [
   {
     path: 'profile',
     loadComponent: () => import('./features/auth/profile/profile.component').then(m => m.ProfileComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'badges',
+    loadComponent: () => import('./components/badge-list/badge-list.component').then(m => m.BadgeListComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'calendar',
+    loadComponent: () => import('./components/calendar/calendar.component').then(m => m.CalendarComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'my-badges',
+    loadComponent: () => import('./components/my-badges/my-badges.component').then(m => m.MyBadgesComponent),
     canActivate: [authGuard],
   },
   {

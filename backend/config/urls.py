@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/courses/', include('apps.courses.urls')),
     path('api/quizzes/', include('apps.quizzes.urls')),
     path('api/analytics/', include('apps.analytics.urls')),
+    path('api/calendar/', include('apps.calendar.urls')),
 ]
 
 if settings.DEBUG:

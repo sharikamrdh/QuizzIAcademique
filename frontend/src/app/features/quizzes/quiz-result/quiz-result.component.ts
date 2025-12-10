@@ -173,7 +173,6 @@ export class QuizResultComponent implements OnInit {
     if (state?.['attempt']) {
       this.attempt = state['attempt'];
     } else {
-      // Try to get from history state
       this.attempt = history.state.attempt;
     }
     

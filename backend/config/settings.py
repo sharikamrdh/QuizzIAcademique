@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     'apps.courses',
     'apps.quizzes',
     'apps.analytics',
+    'apps.gamification',
+    'apps.calendar',
 ]
 
 MIDDLEWARE = [
@@ -148,3 +150,4 @@ ALLOWED_FILE_TYPES = ['pdf', 'docx', 'txt', 'png', 'jpg', 'jpeg']
 
 # Tesseract OCR Path (adjust for your system)
 TESSERACT_CMD = config('TESSERACT_CMD', default='/usr/bin/tesseract')
+

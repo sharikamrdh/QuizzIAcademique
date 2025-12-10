@@ -1,0 +1,93 @@
+<div class="badge-list-container">
+  <!-- En-tête -->
+  <div class="header">
+    <h1>🏆 Tous les Badges</h1>
+    <p class="subtitle">Découvrez tous les badges disponibles sur la plateforme</p>
+    <div class="count-info">
+      <span class="earned">{{ earnedCount }}</span> / {{ totalCount }} badges obtenus
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="filters-section">
+    <h3>🔍 Filtres</h3>
+    <div class="filters-grid">
+      <!-- Filtre Rareté -->
+      <div class="filter-group">
+        <label>Rareté</label>
+        <select [(ngModel)]="selectedRarity" class="filter-select">
+          <option value="all">Toutes</option>
+          <option value="common">Commun</option>
+          <option value="rare">Rare</option>
+          <option value="epic">Épique</option>
+          <option value="legendary">Légendaire</option>
+        </select>
+      </div>
+
+      <!-- Filtre Type -->
+      <div class="filter-group">
+        <label>Type</label>
+        <select [(ngModel)]="selectedType" class="filter-select">
+          <option value="all">Tous</option>
+          <option value="performance">Performance</option>
+          <option value="streak">Série</option>
+          <option value="completion">Complétion</option>
+          <option value="mastery">Maîtrise</option>
+        </select>
+      </div>
+
+      <!-- Filtre Obtenu/Non obtenu -->
+      <div class="filter-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="showOnlyEarned">
+          <span>Uniquement les badges obtenus</span>
+        </label>
+      </div>
+
+      <!-- Bouton Reset -->
+      <div class="filter-group">
+        <button class="reset-btn" (click)="resetFilters()">
+          🔄 Réinitialiser
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chargement -->
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Chargement des badges...</p>
+  </div>
+
+  <!-- Erreur -->
+  <div *ngIf="error" class="error-message">
+    <i>⚠️</i>
+    {{ error }}
+  </div>
+
+  <!-- Liste des badges -->
+  <div *ngIf="!loading && !error" class="badges-section">
+    <div *ngIf="filteredBadges.length === 0" class="no-results">
+      <div class="empty-icon">🔍</div>
+      <h3>Aucun badge trouvé</h3>
+      <p>Essayez de modifier vos filtres</p>
+      <button class="reset-btn" (click)="resetFilters()">
+        Réinitialiser les filtres
+      </button>
+    </div>
+
+    <div *ngIf="filteredBadges.length > 0" class="badges-grid">
+      <app-badge-card 
+        *ngFor="let badge of filteredBadges"
+        [badge]="badge"
+        [userBadge]="getUserBadge(badge)"
+        [isEarned]="isEarned(badge)"
+        [showDetails]="true">
+      </app-badge-card>
+    </div>
+
+    <div *ngIf="filteredBadges.length > 0" class="results-count">
+      {{ filteredBadges.length }} badge(s) affiché(s)
+    </div>
+  </div>
+</div>

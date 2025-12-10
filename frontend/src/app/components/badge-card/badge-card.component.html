@@ -1,0 +1,45 @@
+<div class="badge-card" 
+     [class.earned]="isEarned" 
+     [class.locked]="!isEarned"
+     [ngClass]="badgeService.getRarityClass(badge.rarity)">
+  
+  <!-- Icône du badge -->
+  <div class="badge-icon">
+    <span class="icon">{{ badge.icon }}</span>
+    <div class="rarity-glow" [style.background]="badgeService.getRarityColor(badge.rarity)"></div>
+  </div>
+
+  <!-- Nom du badge -->
+  <h3 class="badge-name">{{ badge.name }}</h3>
+
+  <!-- Rareté -->
+  <div class="badge-rarity" [style.color]="badgeService.getRarityColor(badge.rarity)">
+    {{ badgeService.getRarityLabel(badge.rarity) }}
+  </div>
+
+  <!-- Description -->
+  <p class="badge-description">{{ badge.description }}</p>
+
+  <!-- Points -->
+  <div class="badge-points">
+    <span class="points-value">{{ badge.points }}</span> points
+  </div>
+
+  <!-- Date d'obtention (si obtenu) -->
+  <div *ngIf="isEarned && earnedDate" class="earned-date">
+    <i class="icon-calendar"></i>
+    Obtenu le {{ earnedDate }}
+  </div>
+
+  <!-- Badge verrouillé -->
+  <div *ngIf="!isEarned" class="locked-overlay">
+    <i class="icon-lock">🔒</i>
+  </div>
+
+  <!-- Détails supplémentaires -->
+  <div *ngIf="showDetails" class="badge-details">
+    <div class="detail-item">
+      <strong>Type:</strong> {{ badgeService.getBadgeTypeLabel(badge.badge_type) }}
+    </div>
+  </div>
+</div>

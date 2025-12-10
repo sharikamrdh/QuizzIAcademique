@@ -1,0 +1,86 @@
+<div class="calendar-container">
+  <div class="calendar-header">
+    <h1>📅 Mon Calendrier</h1>
+    <button mat-raised-button color="primary" (click)="createNewEvent()">
+      ➕ Nouvel événement
+    </button>
+  </div>
+
+  <div class="calendar-wrapper">
+    <full-calendar [options]="calendarOptions"></full-calendar>
+  </div>
+</div>
+
+<!-- Dialog pour créer/modifier un événement -->
+<div class="event-dialog-overlay" *ngIf="showEventDialog" (click)="closeDialog()">
+  <div class="event-dialog" (click)="$event.stopPropagation()">
+    <div class="dialog-header">
+      <h2>{{ isNewEvent ? '➕ Nouvel événement' : '✏️ Modifier l\'événement' }}</h2>
+      <button mat-icon-button (click)="closeDialog()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="dialog-content">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Titre</mat-label>
+        <input matInput [(ngModel)]="newEvent.title" placeholder="Ex: Examen de mathématiques" required>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Type d'événement</mat-label>
+        <mat-select [(ngModel)]="newEvent.event_type" (selectionChange)="onEventTypeChange()">
+          <mat-option *ngFor="let type of eventTypes" [value]="type.value">
+            {{ type.label }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <div class="date-row">
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Date de début</mat-label>
+          <input matInput type="datetime-local" [(ngModel)]="newEvent.start_date" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Date de fin</mat-label>
+          <input matInput type="datetime-local" [(ngModel)]="newEvent.end_date">
+        </mat-form-field>
+      </div>
+
+      <mat-checkbox [(ngModel)]="newEvent.all_day" class="full-width">
+        Toute la journée
+      </mat-checkbox>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Lieu</mat-label>
+        <input matInput [(ngModel)]="newEvent.location" placeholder="Ex: Salle A203">
+        <mat-icon matPrefix>location_on</mat-icon>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Description</mat-label>
+        <textarea matInput [(ngModel)]="newEvent.description" rows="3" placeholder="Détails de l'événement..."></textarea>
+      </mat-form-field>
+
+      <div class="color-picker">
+        <label>Couleur :</label>
+        <input type="color" [(ngModel)]="newEvent.color" class="color-input">
+      </div>
+
+      <mat-checkbox [(ngModel)]="newEvent.is_completed" class="full-width" *ngIf="!isNewEvent">
+        ✅ Événement terminé
+      </mat-checkbox>
+    </div>
+
+    <div class="dialog-actions">
+      <button mat-button (click)="closeDialog()">Annuler</button>
+      <button mat-raised-button color="warn" (click)="deleteEvent()" *ngIf="!isNewEvent">
+        🗑️ Supprimer
+      </button>
+      <button mat-raised-button color="primary" (click)="saveEvent()">
+        {{ isNewEvent ? '✅ Créer' : '💾 Enregistrer' }}
+      </button>
+    </div>
+  </div>
+</div>

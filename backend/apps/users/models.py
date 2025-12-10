@@ -23,11 +23,10 @@ class User(AbstractUser):
         default=Role.STUDENT,
         verbose_name='Rôle'
     )
-    avatar = models.ImageField(
-        upload_to='avatars/',
-        null=True,
-        blank=True,
-        verbose_name='Photo de profil'
+    avatar = models.CharField(
+        max_length=50,
+        default='avatar1',
+        help_text='Avatar identifier (avatar1, avatar2, etc.)'
     )
     bio = models.TextField(
         blank=True,

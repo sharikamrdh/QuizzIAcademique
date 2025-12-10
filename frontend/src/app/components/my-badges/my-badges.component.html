@@ -1,0 +1,146 @@
+<div class="my-badges-container">
+  <!-- En-tête -->
+  <div class="header">
+    <h1>🎖️ Mes Badges</h1>
+    <p class="subtitle">Découvrez tous les badges que vous avez gagnés</p>
+  </div>
+
+  <!-- Statistiques -->
+  <div *ngIf="statistics" class="statistics-section">
+    <div class="stat-card">
+      <div class="stat-icon">🎯</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ statistics.earned_badges }}</div>
+        <div class="stat-label">Badges obtenus</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ statistics.completion_percentage.toFixed(1) }}%</div>
+        <div class="stat-label">Complétion</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">⭐</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ statistics.points_total }}</div>
+        <div class="stat-label">Points totaux</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">🏆</div>
+      <div class="stat-content">
+        <div class="stat-value">{{ statistics.total_badges }}</div>
+        <div class="stat-label">Badges disponibles</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barre de progression -->
+  <div *ngIf="statistics" class="progress-section">
+    <div class="progress-header">
+      <span>Progression globale</span>
+      <span>{{ statistics.earned_badges }} / {{ statistics.total_badges }}</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" 
+           [style.width.%]="statistics.completion_percentage"
+           [style.background]="getProgressColor(statistics.completion_percentage)">
+      </div>
+    </div>
+  </div>
+
+  <!-- Chargement -->
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Chargement de vos badges...</p>
+  </div>
+
+  <!-- Erreur -->
+  <div *ngIf="error" class="error-message">
+    <i>⚠️</i>
+    {{ error }}
+  </div>
+
+  <!-- Liste des badges -->
+  <div *ngIf="!loading && !error" class="badges-content">
+    <!-- Aucun badge -->
+    <div *ngIf="myBadges.length === 0" class="no-badges">
+      <div class="empty-icon">🎖️</div>
+      <h3>Vous n'avez pas encore de badges</h3>
+      <p>Passez des quiz pour commencer à gagner des badges !</p>
+    </div>
+
+    <!-- Badges obtenus -->
+    <div *ngIf="myBadges.length > 0">
+      <!-- Légendaires -->
+      <div *ngIf="getBadgesByRarity('legendary').length > 0" class="rarity-section">
+        <h2 class="rarity-title legendary">
+          <span class="rarity-icon">👑</span>
+          Légendaires ({{ getBadgesByRarity('legendary').length }})
+        </h2>
+        <div class="badges-grid">
+          <app-badge-card 
+            *ngFor="let userBadge of getBadgesByRarity('legendary')"
+            [badge]="userBadge.badge"
+            [userBadge]="userBadge"
+            [isEarned]="true"
+            [showDetails]="true">
+          </app-badge-card>
+        </div>
+      </div>
+
+      <!-- Épiques -->
+      <div *ngIf="getBadgesByRarity('epic').length > 0" class="rarity-section">
+        <h2 class="rarity-title epic">
+          <span class="rarity-icon">💎</span>
+          Épiques ({{ getBadgesByRarity('epic').length }})
+        </h2>
+        <div class="badges-grid">
+          <app-badge-card 
+            *ngFor="let userBadge of getBadgesByRarity('epic')"
+            [badge]="userBadge.badge"
+            [userBadge]="userBadge"
+            [isEarned]="true">
+          </app-badge-card>
+        </div>
+      </div>
+
+      <!-- Rares -->
+      <div *ngIf="getBadgesByRarity('rare').length > 0" class="rarity-section">
+        <h2 class="rarity-title rare">
+          <span class="rarity-icon">💠</span>
+          Rares ({{ getBadgesByRarity('rare').length }})
+        </h2>
+        <div class="badges-grid">
+          <app-badge-card 
+            *ngFor="let userBadge of getBadgesByRarity('rare')"
+            [badge]="userBadge.badge"
+            [userBadge]="userBadge"
+            [isEarned]="true">
+          </app-badge-card>
+        </div>
+      </div>
+
+      <!-- Communs -->
+      <div *ngIf="getBadgesByRarity('common').length > 0" class="rarity-section">
+        <h2 class="rarity-title common">
+          <span class="rarity-icon">⚪</span>
+          Communs ({{ getBadgesByRarity('common').length }})
+        </h2>
+        <div class="badges-grid">
+          <app-badge-card 
+            *ngFor="let userBadge of getBadgesByRarity('common')"
+            [badge]="userBadge.badge"
+            [userBadge]="userBadge"
+            [isEarned]="true">
+          </app-badge-card>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -35,7 +35,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV=/Users/lauramridha/Desktop/quiz-generator-project/backend/venv
+VIRTUAL_ENV='/Users/celiachioukh/Documents/L3 MIASHS/S5/quiz-generator-project/backend/venv'
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

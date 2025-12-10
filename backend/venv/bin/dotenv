@@ -1,4 +1,6 @@
-#!/Users/lauramridha/Desktop/quiz-generator-project/backend/venv/bin/python3.11
+#!/bin/sh
+'''exec' "/Users/celiachioukh/Documents/L3 MIASHS/S5/quiz-generator-project/backend/venv/bin/python3.11" "$0" "$@"
+' '''
 import sys
 from dotenv.__main__ import cli
 if __name__ == '__main__':
