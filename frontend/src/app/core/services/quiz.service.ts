@@ -163,4 +163,18 @@ export class QuizService {
   getMyAttempts(): Observable<QuizAttempt[]> {
     return this.http.get<QuizAttempt[]>(`${this.apiUrl}/my-attempts/`);
   }
+
+
+  getDashboardStats(): Observable<{
+  average_score: number;
+  total_quizzes: number;
+  total_points: number;
+  }> {
+	return this.http.get<{
+		average_score: number;
+		total_quizzes: number;
+		total_points: number;
+	}>(`${this.apiUrl}/dashboard/`);
+}
+
 }

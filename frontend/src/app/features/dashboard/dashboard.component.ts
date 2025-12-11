@@ -29,28 +29,28 @@ import { AnalyticsService } from '../../core/services/analytics.service';
           <mat-card class="stat-card">
             <mat-icon>quiz</mat-icon>
             <div class="stat-content">
-              <span class="stat-value">{{ stats?.total_quizzes || 0 }}</span>
-              <span class="stat-label">Quiz completes</span>
+              <span class="stat-value">{{ stats?.summary.total_quizzes || 0 }}</span>
+              <span class="stat-label">Quiz complets</span>
             </div>
           </mat-card>
           <mat-card class="stat-card">
             <mat-icon>check_circle</mat-icon>
             <div class="stat-content">
-              <span class="stat-value">{{ stats?.passed_quizzes || 0 }}</span>
-              <span class="stat-label">Quiz reussis</span>
+              <span class="stat-value">{{ stats?.summary.passed_quizzes || 0 }}</span>
+              <span class="stat-label">Quiz réussis</span>
             </div>
           </mat-card>
           <mat-card class="stat-card">
             <mat-icon>trending_up</mat-icon>
             <div class="stat-content">
-              <span class="stat-value">{{ stats?.average_score || 0 }}%</span>
+              <span class="stat-value">{{ stats?.summary.avg_score || 0 }}%</span>
               <span class="stat-label">Score moyen</span>
             </div>
           </mat-card>
           <mat-card class="stat-card">
             <mat-icon>stars</mat-icon>
             <div class="stat-content">
-              <span class="stat-value">{{ stats?.total_points || 0 }}</span>
+              <span class="stat-value">{{ stats?.summary.total_points || 0 }}</span>
               <span class="stat-label">Points totaux</span>
             </div>
           </mat-card>
@@ -63,7 +63,7 @@ import { AnalyticsService } from '../../core/services/analytics.service';
             <div class="actions-grid">
               <button mat-raised-button color="primary" routerLink="/quizzes/generate">
                 <mat-icon>auto_awesome</mat-icon>
-                Generer un quiz
+                Générer un quiz
               </button>
               <button mat-raised-button routerLink="/courses/new">
                 <mat-icon>add</mat-icon>
@@ -94,10 +94,13 @@ import { AnalyticsService } from '../../core/services/analytics.service';
 export class DashboardComponent implements OnInit {
   stats: any = null;
   loading = true;
+
   constructor(private analyticsService: AnalyticsService) {}
+
   ngOnInit(): void {
     this.loadDashboard();
   }
+
   loadDashboard(): void {
     this.analyticsService.getDashboard().subscribe({
       next: (data) => {

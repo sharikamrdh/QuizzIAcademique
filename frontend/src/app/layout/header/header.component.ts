@@ -28,7 +28,7 @@ import { AuthService } from '../../core/services/auth.service';
       
       <span class="logo" routerLink="/dashboard">
         <mat-icon>school</mat-icon>
-        Quiz Generator
+        QuizIAcademique
       </span>
       
       <span class="spacer"></span>
