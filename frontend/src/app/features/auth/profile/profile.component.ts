@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -25,6 +26,7 @@ import { AuthService } from '../../../core/services/auth.service';
     MatTabsModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
+    MatDialogModule,
   ],
   template: `
     <div class="container">
@@ -100,6 +102,24 @@ import { AuthService } from '../../../core/services/auth.service';
                 </form>
               </mat-card-content>
             </mat-card>
+
+            <!-- Zone de danger -->
+            <mat-card class="danger-zone">
+              <mat-card-header>
+                <mat-card-title>Zone de danger</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p class="warning-text">
+                  <mat-icon>warning</mat-icon>
+                  La suppression de votre compte est irréversible. Toutes vos données (cours, quiz, badges) seront définitivement perdues.
+                </p>
+                <button mat-raised-button color="warn" (click)="confirmDeleteAccount()" [disabled]="deleting">
+                  <mat-spinner diameter="20" *ngIf="deleting"></mat-spinner>
+                  <mat-icon *ngIf="!deleting">delete_forever</mat-icon>
+                  <span *ngIf="!deleting">Supprimer mon compte</span>
+                </button>
+              </mat-card-content>
+            </mat-card>
           </div>
         </mat-tab>
         
@@ -157,6 +177,30 @@ import { AuthService } from '../../../core/services/auth.service';
     button {
       min-width: 150px;
     }
+
+    .danger-zone {
+      margin-top: 24px;
+      border: 2px solid #f44336;
+
+      mat-card-title {
+        color: #f44336;
+      }
+
+      .warning-text {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #666;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: #ffebee;
+        border-radius: 4px;
+
+        mat-icon {
+          color: #f44336;
+        }
+      }
+    }
   `]
 })
 export class ProfileComponent implements OnInit {
@@ -164,11 +208,13 @@ export class ProfileComponent implements OnInit {
   passwordForm: FormGroup;
   saving = false;
   changingPassword = false;
+  deleting = false;
 
   constructor(
     private fb: FormBuilder,
     public authService: AuthService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog
   ) {
     this.profileForm = this.fb.group({
       first_name: [''],
@@ -203,14 +249,12 @@ export class ProfileComponent implements OnInit {
         this.saving = false;
         this.snackBar.open('Profil mis à jour !', 'Fermer', {
           duration: 3000,
-          panelClass: 'success-snackbar',
         });
       },
       error: () => {
         this.saving = false;
         this.snackBar.open('Erreur lors de la mise à jour', 'Fermer', {
           duration: 5000,
-          panelClass: 'error-snackbar',
         });
       },
     });
@@ -222,7 +266,6 @@ export class ProfileComponent implements OnInit {
     if (new_password !== new_password_confirm) {
       this.snackBar.open('Les mots de passe ne correspondent pas', 'Fermer', {
         duration: 5000,
-        panelClass: 'error-snackbar',
       });
       return;
     }
@@ -234,7 +277,6 @@ export class ProfileComponent implements OnInit {
         this.passwordForm.reset();
         this.snackBar.open('Mot de passe modifié !', 'Fermer', {
           duration: 3000,
-          panelClass: 'success-snackbar',
         });
       },
       error: (error) => {
@@ -242,7 +284,48 @@ export class ProfileComponent implements OnInit {
         const message = error.error?.old_password || 'Erreur lors du changement';
         this.snackBar.open(message, 'Fermer', {
           duration: 5000,
-          panelClass: 'error-snackbar',
+        });
+      },
+    });
+  }
+
+  confirmDeleteAccount(): void {
+    const confirmation = confirm(
+      '⚠️ ATTENTION ⚠️\n\n' +
+      'Vous êtes sur le point de supprimer définitivement votre compte.\n\n' +
+      'Toutes vos données seront perdues :\n' +
+      '• Vos cours\n' +
+      '• Vos quiz\n' +
+      '• Vos statistiques\n' +
+      '• Vos badges\n\n' +
+      'Cette action est IRRÉVERSIBLE.\n\n' +
+      'Voulez-vous vraiment continuer ?'
+    );
+
+    if (!confirmation) return;
+
+    const secondConfirmation = confirm(
+      'Dernière confirmation : Êtes-vous absolument certain de vouloir supprimer votre compte ?'
+    );
+
+    if (secondConfirmation) {
+      this.deleteAccount();
+    }
+  }
+
+  deleteAccount(): void {
+    this.deleting = true;
+    this.authService.deleteAccount().subscribe({
+      next: () => {
+        this.snackBar.open('Votre compte a été supprimé', 'OK', {
+          duration: 3000,
+        });
+        this.authService.logout();
+      },
+      error: () => {
+        this.deleting = false;
+        this.snackBar.open('Erreur lors de la suppression', 'Fermer', {
+          duration: 5000,
         });
       },
     });

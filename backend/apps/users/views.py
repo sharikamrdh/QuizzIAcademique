@@ -1,7 +1,6 @@
 """
 Views for User management.
 """
-
 from django.contrib.auth import get_user_model
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -57,6 +56,15 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         if self.request.method in ['PUT', 'PATCH']:
             return UserUpdateSerializer
         return UserSerializer
+    
+    def delete(self, request):
+        """Delete user account."""
+        user = request.user
+        user.delete()
+        return Response(
+            {'message': 'Compte supprimé avec succès.'},
+            status=status.HTTP_200_OK
+        )
 
 
 class ChangePasswordView(APIView):

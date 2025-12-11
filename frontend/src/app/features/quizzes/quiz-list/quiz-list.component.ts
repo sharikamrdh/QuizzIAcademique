@@ -10,7 +10,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { QuizService, Quiz } from '../../../core/services/quiz.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-quiz-list',
@@ -27,6 +30,8 @@ import { QuizService, Quiz } from '../../../core/services/quiz.service';
     MatSelectModule,
     MatChipsModule,
     MatProgressSpinnerModule,
+    MatMenuModule,
+    MatSnackBarModule,
   ],
   template: `
     <div class="container">
@@ -71,6 +76,28 @@ import { QuizService, Quiz } from '../../../core/services/quiz.service';
             <mat-icon mat-card-avatar>quiz</mat-icon>
             <mat-card-title>{{ quiz.title }}</mat-card-title>
             <mat-card-subtitle>{{ quiz.course_title }}</mat-card-subtitle>
+            
+            <!-- Menu 3 points pour les quiz créés par l'utilisateur -->
+            <button mat-icon-button 
+              *ngIf="isMyQuiz(quiz)"
+              [matMenuTriggerFor]="quizMenu" 
+              class="menu-button">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #quizMenu="matMenu">
+              <button mat-menu-item [routerLink]="['/quizzes', quiz.id]">
+                <mat-icon>visibility</mat-icon>
+                <span>Voir</span>
+              </button>
+              <button mat-menu-item (click)="publishQuiz(quiz)" *ngIf="quiz.status === 'draft'">
+                <mat-icon>publish</mat-icon>
+                <span>Publier</span>
+              </button>
+              <button mat-menu-item (click)="deleteQuiz(quiz)" class="delete-btn">
+                <mat-icon>delete</mat-icon>
+                <span>Supprimer</span>
+              </button>
+            </mat-menu>
           </mat-card-header>
           
           <mat-card-content>
@@ -80,6 +107,8 @@ import { QuizService, Quiz } from '../../../core/services/quiz.service';
               </span>
               <span>{{ quiz.questions_count }} questions</span>
               <span *ngIf="quiz.time_limit > 0">{{ quiz.time_limit }} min</span>
+              <span *ngIf="quiz.status === 'draft'" class="status-badge draft">Brouillon</span>
+              <span *ngIf="quiz.status === 'published'" class="status-badge published">Publié</span>
             </div>
           </mat-card-content>
           
@@ -103,16 +132,97 @@ import { QuizService, Quiz } from '../../../core/services/quiz.service';
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; }
-    .filters-card { margin-bottom: 24px; }
-    .filters { display: flex; gap: 16px; flex-wrap: wrap; }
-    .quiz-card mat-card-actions { display: flex; justify-content: space-between; }
-    .quiz-info { display: flex; gap: 16px; color: #666; font-size: 14px; }
-    .difficulty { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-    .difficulty.debutant { background: #e8f5e9; color: #2e7d32; }
-    .difficulty.intermediaire { background: #fff3e0; color: #ef6c00; }
-    .difficulty.avance { background: #ffebee; color: #c62828; }
-    .empty-state { grid-column: 1 / -1; text-align: center; padding: 60px; }
+    .page-header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: flex-start; 
+    }
+    
+    .filters-card { 
+      margin-bottom: 24px; 
+    }
+    
+    .filters { 
+      display: flex; 
+      gap: 16px; 
+      flex-wrap: wrap; 
+    }
+    
+    .quiz-card {
+      mat-card-header {
+        position: relative;
+        
+        .menu-button {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+        }
+      }
+      
+      mat-card-actions { 
+        display: flex; 
+        justify-content: space-between; 
+      }
+    }
+    
+    .quiz-info { 
+      display: flex; 
+      gap: 16px; 
+      color: #666; 
+      font-size: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .difficulty { 
+      padding: 4px 8px; 
+      border-radius: 4px; 
+      font-size: 12px; 
+    }
+    
+    .difficulty.debutant { 
+      background: #e8f5e9; 
+      color: #2e7d32; 
+    }
+    
+    .difficulty.intermediaire { 
+      background: #fff3e0; 
+      color: #ef6c00; 
+    }
+    
+    .difficulty.avance { 
+      background: #ffebee; 
+      color: #c62828; 
+    }
+    
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    
+    .status-badge.draft {
+      background: #fafafa;
+      color: #757575;
+      border: 1px solid #e0e0e0;
+    }
+    
+    .status-badge.published {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    
+    .delete-btn {
+      color: #f44336;
+    }
+    
+    .empty-state { 
+      grid-column: 1 / -1; 
+      text-align: center; 
+      padding: 60px; 
+    }
   `]
 })
 export class QuizListComponent implements OnInit {
@@ -121,7 +231,11 @@ export class QuizListComponent implements OnInit {
   searchQuery = '';
   difficultyFilter = '';
 
-  constructor(private quizService: QuizService) {}
+  constructor(
+    private quizService: QuizService,
+    private authService: AuthService,
+    private snackBar: MatSnackBar
+  ) {}
 
   ngOnInit(): void {
     this.loadQuizzes();
@@ -137,7 +251,9 @@ export class QuizListComponent implements OnInit {
         this.quizzes = response.results;
         this.loading = false;
       },
-      error: () => { this.loading = false; },
+      error: () => { 
+        this.loading = false; 
+      },
     });
   }
 
@@ -146,7 +262,58 @@ export class QuizListComponent implements OnInit {
   }
 
   getDifficultyLabel(d: string): string {
-    const labels: Record<string, string> = { debutant: 'Débutant', intermediaire: 'Intermédiaire', avance: 'Avancé' };
+    const labels: Record<string, string> = { 
+      debutant: 'Débutant', 
+      intermediaire: 'Intermédiaire', 
+      avance: 'Avancé' 
+    };
     return labels[d] || d;
+  }
+
+  isMyQuiz(quiz: Quiz): boolean {
+    const currentUser = this.authService.user();
+    return currentUser ? quiz.created_by === currentUser.id : false;
+  }
+
+  publishQuiz(quiz: Quiz): void {
+    this.quizService.publishQuiz(quiz.id).subscribe({
+      next: () => {
+        this.snackBar.open('Quiz publié avec succès !', 'Fermer', {
+          duration: 3000,
+        });
+        this.loadQuizzes();
+      },
+      error: () => {
+        this.snackBar.open('Erreur lors de la publication', 'Fermer', {
+          duration: 5000,
+        });
+      },
+    });
+  }
+
+  deleteQuiz(quiz: Quiz): void {
+    const confirmation = confirm(
+      `Êtes-vous sûr de vouloir supprimer le quiz "${quiz.title}" ?\n\n` +
+      `Cette action est irréversible et supprimera également :\n` +
+      `• Toutes les questions (${quiz.questions_count})\n` +
+      `• Toutes les tentatives des étudiants\n` +
+      `• Toutes les statistiques associées`
+    );
+
+    if (!confirmation) return;
+
+    this.quizService.deleteQuiz(quiz.id).subscribe({
+      next: () => {
+        this.snackBar.open('Quiz supprimé avec succès', 'Fermer', {
+          duration: 3000,
+        });
+        this.quizzes = this.quizzes.filter(q => q.id !== quiz.id);
+      },
+      error: () => {
+        this.snackBar.open('Erreur lors de la suppression', 'Fermer', {
+          duration: 5000,
+        });
+      },
+    });
   }
 }

@@ -130,4 +130,12 @@ export class AuthService {
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
+  
+  deleteAccount(): Observable<void> {
+  return this.http.delete<void>(`${this.apiUrl}/profile/`).pipe(
+    tap(() => {
+      this.logout();
+    })
+  );
+}
 }
