@@ -224,28 +224,39 @@ export class QuizPlayerComponent implements OnInit, OnDestroy {
     this.currentIndex = index;
   }
 
-  submitQuiz(): void {
-    this.timerSubscription?.unsubscribe();
-    this.submitting = true;
+ submitQuiz(): void {
+  this.timerSubscription?.unsubscribe();
+  this.submitting = true;
+  
+  const timeSpent = Math.floor((Date.now() - this.startTime) / 1000);
+  const formattedAnswers = Object.entries(this.answers).map(([qId, answer]) => {
+    // Pour les QCM et Vrai/Faux, extraire juste la lettre
+    const question = this.questions.find(q => q.id === Number(qId));
+    let cleanAnswer = answer || '';
     
-    const timeSpent = Math.floor((Date.now() - this.startTime) / 1000);
-    const formattedAnswers = Object.entries(this.answers).map(([qId, answer]) => ({
+    if (question && (question.question_type === 'qcm' || question.question_type === 'vf')) {
+      // Extraire juste la première lettre (A, B, C, D) ou le début avant la parenthèse
+      cleanAnswer = answer.split(')')[0].trim();
+    }
+    
+    return {
       question_id: Number(qId),
-      answer: answer || '',
-    }));
+      answer: cleanAnswer,
+    };
+  });
 
-    this.quizService.submitAttempt(this.quiz!.id, formattedAnswers, timeSpent).subscribe({
-      next: (result) => {
-        this.router.navigate(['/quizzes', this.quiz!.id, 'result'], {
-          state: { attempt: result }
-        });
-      },
-      error: () => {
-        this.submitting = false;
-        this.snackBar.open('Erreur lors de la soumission', 'Fermer', { duration: 5000 });
-      },
-    });
-  }
+  this.quizService.submitAttempt(this.quiz!.id, formattedAnswers, timeSpent).subscribe({
+    next: (result) => {
+      this.router.navigate(['/quizzes', this.quiz!.id, 'result'], {
+        state: { attempt: result }
+      });
+    },
+    error: () => {
+      this.submitting = false;
+      this.snackBar.open('Erreur lors de la soumission', 'Fermer', { duration: 5000 });
+    },
+  });
+}
 
   formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);

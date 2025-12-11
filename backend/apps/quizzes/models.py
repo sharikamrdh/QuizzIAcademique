@@ -134,9 +134,10 @@ class Question(models.Model):
 
     def check_answer(self, user_answer: str) -> bool:
         """Check if the user's answer is correct."""
-        if self.question_type in [self.QuestionType.OPEN, self.QuestionType.COMPLETION]:
-            return user_answer.lower().strip() == self.correct_answer.lower().strip()
-        return user_answer == self.correct_answer
+        # Normaliser les deux réponses pour la comparaison
+        user_normalized = user_answer.strip().lower()
+        correct_normalized = self.correct_answer.strip().lower()
+        return user_normalized == correct_normalized
 
 
 class QuizAttempt(models.Model):
